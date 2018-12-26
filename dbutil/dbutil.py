@@ -1,29 +1,43 @@
 #!/usr/bin/env python
-#encoding:utf8
+# encoding:utf8
 import json
-import time,random
+import time, random
 import datetime
-import MySQLdb
-import MySQLdb.cursors
+import sqlite3
 
-class DB: 
+
+class DB:
     conn = None
-    db = None
-    host = None
 
-    def __init__(self, host, mysql_user, mysql_pass, mysql_db):
-        self.host = host
-        self.mysql_user = mysql_user
-        self.mysql_pass = mysql_pass
+    def __init__(self, mysql_db):
         self.mysql_db = mysql_db
+
     def connect(self):
-        self.conn = MySQLdb.connect(host=self.host, user=self.mysql_user, passwd=self.mysql_pass, db=self.mysql_db, charset="utf8", connect_timeout=600, compress=True,cursorclass = MySQLdb.cursors.DictCursor)
-        self.conn.autocommit(True)
-    def execute(self, sql):
+        print("conn start" + self.mysql_db)
+        self.conn = sqlite3.connect(self.mysql_db)
+        print("conn end" + self.mysql_db)
+
+    def dict_factory(self, cursor, row):
+        d = {}
+        for idx, col in enumerate(cursor.description):
+            d[col[0]] = row[idx]
+        return d
+
+    def execute(self, sql, **parameters):
         try:
+            parameters = parameters.get("parameters") if parameters.get("parameters") else ()
+            print(sql)
+            print("parameters is ", parameters)
+            self.conn = sqlite3.connect(self.mysql_db, isolation_level=None)
+            self.conn.row_factory = self.dict_factory
             cursor = self.conn.cursor()
-            cursor.execute(sql)
-        except (AttributeError, MySQLdb.OperationalError):
+            self.conn.cursor()
+            cursor.execute(sql, parameters)
+            # cursor.close()
+            # self.conn.commit()
+            # self.conn.close()
+        except sqlite3.Error as e:
+            print("An error occurred:", e.args[0])
             try:
                 cursor.close()
                 self.conn.close()
@@ -32,14 +46,15 @@ class DB:
             time.sleep(1)
             try:
                 self.connect()
-                print "reconnect DB"
+                print("reconnect DB")
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
-            except (AttributeError, MySQLdb.OperationalError):
+            except sqlite3.Error as e:
+                print("An error occurred:", e.args[0])
                 time.sleep(2)
                 self.connect()
-                print "reconnect DB"
+                print("reconnect DB")
                 cursor = self.conn.cursor()
                 cursor.execute(sql)
-    
+
         return cursor

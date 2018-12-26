@@ -4,12 +4,9 @@ from dbutil.dbutil import DB
 # import requests
 import json
 import sys
-reload(sys)
-sys.setdefaultencoding("utf-8")
 app = Flask(__name__)
 app.secret_key = '\xca\x0c\x86\x04\x98@\x02b\x1b7\x8c\x88]\x1b\xd7"+\xe6px@\xc3#\\'
-db = DB(host=db_config['host'], mysql_user=db_config['user'], mysql_pass=db_config['passwd'], \
-                mysql_db=db_config['db'])
+db = DB(mysql_db=db_config['db'])
 page_config.setdefault('favicon','/static/img/favicon.ico')
 page_config.setdefault('title','Woniu-cmdb')
 page_config.setdefault('brand_name','Woniu-cmdb')
@@ -21,18 +18,17 @@ def login():
     if request.method == "POST":
         name = request.form.get('username')
         passwd = request.form.get('password')
-        print name
-        print passwd
+        print(name+"  "+passwd)
         obj = {"result":1}
         if name and passwd:
             sql = 'select * from user where username="%s" and password="%s"'%(name,passwd)
-            print sql
+            print(sql)
             cur = db.execute(sql)
             # print cur.fetchone()
             if cur.fetchone():
                 obj["result"] = 0
                 session['username'] = name
-        return json.dumps(obj)                
+        return json.dumps(obj)
     else:
         return render_template('login.html')
 @app.route('/logout')
@@ -53,10 +49,12 @@ def addapi():
     table = obj.pop('action_type')
     keys = obj.keys()
     values = obj.values()
+    print (values)
+    valuestr = map(lambda x: "?", values)
 
-    sql = 'insert into %s (%s) values ("%s")' % (table,','.join(keys),'","'.join(values))
-    print sql
-    db.execute(sql)
+    sql = 'insert into %s (%s) values (%s)' % (table,','.join(keys),','.join(valuestr))
+    print (sql)
+    db.execute(sql,parameters=tuple(values))
     res = {'result':'ok'}
     return json.dumps(res)
 @app.route('/delapi', methods=['POST'])
@@ -67,7 +65,7 @@ def delapi():
     table_id = obj.pop('id')
     sql = 'delete from %s where id=%s' %(table,table_id)
     # sql = 'insert into %s (%s) values ("%s")' % (table,','.join(keys),'","'.join(values))
-    print sql
+    print (sql)
     db.execute(sql)
     res = {'result':'ok'}
     return json.dumps(res)
@@ -78,6 +76,7 @@ def listapi():
     sql = 'select * from '+action_type
     cur = db.execute(sql)
     res = {"result":cur.fetchall()}
+    print (json.dumps(res))
     return json.dumps(res)
 
 @app.route('/updateapi',methods=['POST'])
@@ -86,17 +85,19 @@ def updateapi():
     table = obj.pop('action_type')
     table_id = obj.pop('id')
     arr = []
+    params = []
     for key,val in obj.items():
-        arr.append('%s="%s"'%(key,val))
-    print arr
+        arr.append(key + '=?')
+        params.append(val)
+    print ("%s   %s" % (arr,params))
     keys = obj.keys()
     values = obj.values()
     sql = 'update %s set '%(table)
 
     sql += ','.join(arr)
     sql += ' where id='+table_id
-    print sql
-    db.execute(sql)
+    print (sql)
+    db.execute(sql,parameters=tuple(params))
     res = {'result':'ok'}
     return json.dumps(res)
 
