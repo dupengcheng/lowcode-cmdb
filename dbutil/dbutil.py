@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # encoding:utf8
-import json
-import time, random
-import datetime
+import time
 import sqlite3
+from config import page_config2
 
 
 class DB:
@@ -37,7 +36,13 @@ class DB:
             # self.conn.commit()
             # self.conn.close()
         except sqlite3.Error as e:
+            err_msg = e.args[0]
             print("An error occurred:", e.args[0])
+            if "no such table" in err_msg:
+                table = err_msg.split(":")[1].strip()
+                print("create table ", table)
+                self.create_table(table)
+                # page_config2[template]
             try:
                 cursor.close()
                 self.conn.close()
@@ -58,3 +63,20 @@ class DB:
                 cursor.execute(sql)
 
         return cursor
+
+    def create_table(self, name):
+        if name not in page_config2.keys():
+            return
+        if "data" not in page_config2[name]:
+            return
+        data = page_config2[name]["data"]
+        tmp = []
+        for v in data:
+            tmp.append('%s varchar(200)' % v['name'])
+        sql = 'create table %s (id INTEGER PRIMARY KEY ,%s)' % (name, ','.join(tmp))
+        print(sql)
+        self.execute(sql)
+        print('table %s is created' % name)
+        if "user" == name:
+            self.execute('insert into user (username,password) values ("admin","admin")')
+
