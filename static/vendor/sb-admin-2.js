@@ -401,6 +401,7 @@ $.extend(RebootPage.prototype, {
             var obj = $(this).data()
             console.log(obj)
             $.each(obj, function(key, val) {
+                val = unescape(val)
                 if (that.updateForm.find('[name="' + key + '"]').length) {
                     that.updateForm.find('[name="' + key + '"]').val(val)
                 } else {
@@ -484,6 +485,7 @@ $.extend(RebootPage.prototype, {
                 //将数据放在data里,编辑的时候从这里取数据渲染表单
                 $.each(v, function(key, val) {
                     if (val || val === 0) {
+                        var val = escape(val)
                         btn.push(' data-' + key + '=' + val)
                     };
 
