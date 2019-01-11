@@ -1,20 +1,72 @@
 // 扩展jquery
 // 多个ajax执行完毕，出发函数
-$.whenAll = function() {
-    var lastResolved = 0;
+//$.whenAll = function() {
+//    var lastResolved = 0;
+//
+//    var wrappedDeferreds = [];
+//
+//    for (var i = 0; i < arguments.length; i++) {
+//        wrappedDeferreds.push(jQuery.Deferred());
+//
+//        arguments[i].always(function() {
+//            wrappedDeferreds[lastResolved++].resolve(arguments);
+//        });
+//    }
+//
+//    return jQuery.when.apply(jQuery, wrappedDeferreds).promise();
+//};
+;(function($) {
+  var slice = [].slice;
 
-    var wrappedDeferreds = [];
+  $.whenAll = function(array) {
+    var
+      resolveValues = arguments.length == 1 && $.isArray(array)
+        ? array
+        : slice.call(arguments)
+      ,length = resolveValues.length
+      ,remaining = length
+      ,deferred = $.Deferred()
+      ,i = 0
+      ,failed = 0
+      ,rejectContexts = Array(length)
+      ,rejectValues = Array(length)
+      ,resolveContexts = Array(length)
+      ,value
+    ;
 
-    for (var i = 0; i < arguments.length; i++) {
-        wrappedDeferreds.push(jQuery.Deferred());
-
-        arguments[i].always(function() {
-            wrappedDeferreds[lastResolved++].resolve(arguments);
-        });
+    function updateFunc (index, contexts, values) {
+      return function() {
+        !(values === resolveValues) && failed++;
+        deferred.notifyWith(
+         contexts[index] = this
+         ,values[index] = slice.call(arguments)
+        );
+        if (!(--remaining)) {
+          deferred[(!failed ? 'resolve' : 'reject') + 'With'](contexts, values);
+        }
+      };
     }
 
-    return jQuery.when.apply(jQuery, wrappedDeferreds).promise();
-};
+    for (; i < length; i++) {
+      if ((value = resolveValues[i]) && $.isFunction(value.promise)) {
+        value.promise()
+          .done(updateFunc(i, resolveContexts, resolveValues))
+          .fail(updateFunc(i, rejectContexts, rejectValues))
+        ;
+      }
+      else {
+        deferred.notifyWith(this, value);
+        --remaining;
+      }
+    }
+
+    if (!remaining) {
+      deferred.resolveWith(resolveContexts, resolveValues);
+    }
+
+    return deferred.promise();
+  };
+})(jQuery);
 // 工具函数 提交
 // 传入form的id，成功函数
 $.rajax = function(form, fn, data) {
